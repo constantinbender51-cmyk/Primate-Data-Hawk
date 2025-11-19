@@ -18,7 +18,15 @@ class BitcoinCorrelationData:
             if data.empty:
                 print(f"Warning: No data returned for {ticker}")
                 return None
-            return data['Close']
+            
+            # Ensure we return a Series, not a DataFrame
+            close_data = data['Close']
+            if isinstance(close_data, pd.Series):
+                return close_data
+            else:
+                # Convert DataFrame column to Series if needed
+                return close_data.iloc[:, 0] if isinstance(close_data, pd.DataFrame) else close_data.squeeze()
+                
         except Exception as e:
             print(f"Error fetching {ticker}: {e}")
             return None
@@ -28,8 +36,13 @@ class BitcoinCorrelationData:
         try:
             btc_data = self.safe_yf_download("BTC-USD", period)
             if btc_data is not None and len(btc_data) > 0:
+                # Ensure it's a Series
+                if not isinstance(btc_data, pd.Series):
+                    btc_data = pd.Series(btc_data.values, index=btc_data.index, name='BTC')
+                
                 self.data['BTC'] = btc_data
                 print(f"✓ Bitcoin price data fetched ({len(btc_data)} points)")
+                print(f"  Type: {type(btc_data)}, Index type: {type(btc_data.index)}")
                 return btc_data
             else:
                 print("✗ Failed to fetch Bitcoin data")
@@ -43,6 +56,8 @@ class BitcoinCorrelationData:
         try:
             sp500_data = self.safe_yf_download("^GSPC", period)
             if sp500_data is not None and len(sp500_data) > 0:
+                if not isinstance(sp500_data, pd.Series):
+                    sp500_data = pd.Series(sp500_data.values, index=sp500_data.index, name='SP500')
                 self.data['SP500'] = sp500_data
                 print(f"✓ S&P 500 data fetched ({len(sp500_data)} points)")
                 return sp500_data
@@ -58,6 +73,8 @@ class BitcoinCorrelationData:
         try:
             dxy_data = self.safe_yf_download("DX=F", period)
             if dxy_data is not None and len(dxy_data) > 0:
+                if not isinstance(dxy_data, pd.Series):
+                    dxy_data = pd.Series(dxy_data.values, index=dxy_data.index, name='DXY')
                 self.data['DXY'] = dxy_data
                 print(f"✓ Dollar Index (DXY) data fetched ({len(dxy_data)} points)")
                 return dxy_data
@@ -74,6 +91,8 @@ class BitcoinCorrelationData:
             # Using Treasury ETF as proxy for yields
             tlt_data = self.safe_yf_download("TLT", period)
             if tlt_data is not None and len(tlt_data) > 0:
+                if not isinstance(tlt_data, pd.Series):
+                    tlt_data = pd.Series(tlt_data.values, index=tlt_data.index, name='Treasury_Yield_Proxy')
                 self.data['Treasury_Yield_Proxy'] = tlt_data
                 print(f"✓ Treasury yields data fetched ({len(tlt_data)} points)")
                 return tlt_data
@@ -89,6 +108,8 @@ class BitcoinCorrelationData:
         try:
             gold_data = self.safe_yf_download("GC=F", period)
             if gold_data is not None and len(gold_data) > 0:
+                if not isinstance(gold_data, pd.Series):
+                    gold_data = pd.Series(gold_data.values, index=gold_data.index, name='Gold')
                 self.data['Gold'] = gold_data
                 print(f"✓ Gold price data fetched ({len(gold_data)} points)")
                 return gold_data
@@ -117,9 +138,14 @@ class BitcoinCorrelationData:
                 df = pd.DataFrame(fear_greed_data)
                 df.set_index('Date', inplace=True)
                 df.sort_index(inplace=True)
-                self.data['Fear_Greed'] = df['Fear_Greed']
+                # Ensure it's a Series
+                fear_greed_series = df['Fear_Greed']
+                if not isinstance(fear_greed_series, pd.Series):
+                    fear_greed_series = pd.Series(fear_greed_series.values, index=fear_greed_series.index, name='Fear_Greed')
+                
+                self.data['Fear_Greed'] = fear_greed_series
                 print(f"✓ Fear & Greed Index data fetched ({len(df)} points)")
-                return df['Fear_Greed']
+                return fear_greed_series
             else:
                 print("✗ Could not fetch Fear & Greed data")
                 return None
@@ -133,6 +159,8 @@ class BitcoinCorrelationData:
             # Using multiple crypto assets as proxy for total market cap
             eth_data = self.safe_yf_download("ETH-USD", "2y")
             if eth_data is not None and len(eth_data) > 0:
+                if not isinstance(eth_data, pd.Series):
+                    eth_data = pd.Series(eth_data.values, index=eth_data.index, name='ETH')
                 self.data['ETH'] = eth_data
                 print(f"✓ Ethereum data fetched as market proxy ({len(eth_data)} points)")
                 return eth_data
@@ -148,6 +176,8 @@ class BitcoinCorrelationData:
         try:
             vix_data = self.safe_yf_download("^VIX", period)
             if vix_data is not None and len(vix_data) > 0:
+                if not isinstance(vix_data, pd.Series):
+                    vix_data = pd.Series(vix_data.values, index=vix_data.index, name='VIX')
                 self.data['VIX'] = vix_data
                 print(f"✓ VIX data fetched ({len(vix_data)} points)")
                 return vix_data
@@ -166,12 +196,19 @@ class BitcoinCorrelationData:
                 print("✗ Failed to fetch BTC data for on-chain metrics")
                 return None, None
                 
-            # Using volume and price range as proxies
-            self.data['BTC_Volume'] = btc_data['Volume']
-            # Calculate daily volatility
-            self.data['BTC_Volatility'] = (btc_data['High'] - btc_data['Low']) / btc_data['Close']
+            # Using volume and price range as proxies - ensure they are Series
+            volume_series = btc_data['Volume']
+            if not isinstance(volume_series, pd.Series):
+                volume_series = pd.Series(volume_series.values, index=volume_series.index, name='BTC_Volume')
+            
+            volatility_series = (btc_data['High'] - btc_data['Low']) / btc_data['Close']
+            if not isinstance(volatility_series, pd.Series):
+                volatility_series = pd.Series(volatility_series.values, index=volatility_series.index, name='BTC_Volatility')
+            
+            self.data['BTC_Volume'] = volume_series
+            self.data['BTC_Volatility'] = volatility_series
             print(f"✓ On-chain metrics proxies created ({len(btc_data)} points)")
-            return self.data['BTC_Volume'], self.data['BTC_Volatility']
+            return volume_series, volatility_series
         except Exception as e:
             print(f"Error creating on-chain proxies: {e}")
             return None, None
@@ -181,8 +218,14 @@ class BitcoinCorrelationData:
         valid_data = {}
         for key, value in self.data.items():
             if hasattr(value, 'index') and len(value) > 1:
+                # Check if it's a Series, if not convert it
+                if not isinstance(value, pd.Series):
+                    print(f"⚠ {key}: Converting to Series from {type(value)}")
+                    value = pd.Series(value.values, index=value.index, name=key)
+                    self.data[key] = value
+                
                 valid_data[key] = value
-                print(f"✓ {key}: Valid data with {len(value)} points")
+                print(f"✓ {key}: Valid Series with {len(value)} points")
             else:
                 print(f"✗ {key}: Invalid data (scalar or empty)")
         
@@ -224,18 +267,23 @@ class BitcoinCorrelationData:
             return False
         
         try:
-            # Create base DataFrame with BTC price - ensure we're using the Series properly
-            btc_series = self.data['BTC']
-            if not isinstance(btc_series, pd.Series):
-                print("✗ BTC data is not a pandas Series")
-                return False
-                
+            # Get BTC data and ensure it's a Series
+            btc_data = self.data['BTC']
+            print(f"BTC data type: {type(btc_data)}")
+            print(f"BTC data index type: {type(btc_data.index)}")
+            
+            if not isinstance(btc_data, pd.Series):
+                print("✗ BTC data is not a pandas Series, attempting conversion...")
+                btc_data = pd.Series(btc_data.values, index=btc_data.index, name='BTC_Price')
+                self.data['BTC'] = btc_data
+            
             # Create the DataFrame properly
             combined_df = pd.DataFrame({
-                'BTC_Price': btc_series.values
-            }, index=btc_series.index)
+                'BTC_Price': btc_data.values
+            }, index=btc_data.index)
             
             print(f"✓ Base DataFrame created with {len(combined_df)} rows")
+            print(f"Base DataFrame columns: {combined_df.columns.tolist()}")
             
             # Add other data sources
             data_mapping = {
@@ -254,14 +302,17 @@ class BitcoinCorrelationData:
                 if key in self.data:
                     try:
                         source_data = self.data[key]
-                        if isinstance(source_data, pd.Series):
-                            # Align the data with the base DataFrame index
-                            aligned_data = source_data.reindex(combined_df.index)
-                            combined_df[col_name] = aligned_data
-                            added_columns += 1
-                            print(f"✓ Added {col_name}")
-                        else:
-                            print(f"✗ {key} is not a pandas Series")
+                        # Ensure it's a Series
+                        if not isinstance(source_data, pd.Series):
+                            print(f"⚠ Converting {key} to Series")
+                            source_data = pd.Series(source_data.values, index=source_data.index, name=col_name)
+                            self.data[key] = source_data
+                        
+                        # Align the data with the base DataFrame index
+                        aligned_data = source_data.reindex(combined_df.index)
+                        combined_df[col_name] = aligned_data
+                        added_columns += 1
+                        print(f"✓ Added {col_name}")
                     except Exception as e:
                         print(f"✗ Error adding {col_name}: {e}")
             
@@ -269,14 +320,16 @@ class BitcoinCorrelationData:
             if 'Fear_Greed' in self.data:
                 try:
                     fear_greed = self.data['Fear_Greed']
-                    if isinstance(fear_greed, pd.Series):
-                        # Reindex to match the main DataFrame's dates
-                        fear_greed_aligned = fear_greed.reindex(combined_df.index, method='ffill')
-                        combined_df['Fear_Greed_Index'] = fear_greed_aligned
-                        added_columns += 1
-                        print("✓ Added Fear_Greed_Index")
-                    else:
-                        print("✗ Fear_Greed is not a pandas Series")
+                    if not isinstance(fear_greed, pd.Series):
+                        print("⚠ Converting Fear_Greed to Series")
+                        fear_greed = pd.Series(fear_greed.values, index=fear_greed.index, name='Fear_Greed_Index')
+                        self.data['Fear_Greed'] = fear_greed
+                    
+                    # Reindex to match the main DataFrame's dates
+                    fear_greed_aligned = fear_greed.reindex(combined_df.index, method='ffill')
+                    combined_df['Fear_Greed_Index'] = fear_greed_aligned
+                    added_columns += 1
+                    print("✓ Added Fear_Greed_Index")
                 except Exception as e:
                     print(f"✗ Error adding Fear_Greed_Index: {e}")
             
@@ -297,6 +350,8 @@ class BitcoinCorrelationData:
             
         except Exception as e:
             print(f"✗ Error combining data: {e}")
+            import traceback
+            print(f"Detailed error: {traceback.format_exc()}")
             return False
 
     def calculate_correlations(self):
