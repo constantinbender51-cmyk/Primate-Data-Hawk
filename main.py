@@ -11,13 +11,29 @@ class BitcoinCorrelationData:
     def __init__(self):
         self.data = {}
         
+    def safe_yf_download(self, ticker, period="2y", interval="1d"):
+        """Safely download data from Yahoo Finance with error handling"""
+        try:
+            data = yf.download(ticker, period=period, interval=interval, progress=False)
+            if data.empty:
+                print(f"Warning: No data returned for {ticker}")
+                return None
+            return data['Close']
+        except Exception as e:
+            print(f"Error fetching {ticker}: {e}")
+            return None
+        
     def fetch_btc_price(self, period="2y"):
         """Fetch Bitcoin price data from Yahoo Finance"""
         try:
-            btc = yf.download("BTC-USD", period=period, interval="1d")
-            self.data['BTC'] = btc['Close']
-            print("✓ Bitcoin price data fetched")
-            return btc['Close']
+            btc_data = self.safe_yf_download("BTC-USD", period)
+            if btc_data is not None:
+                self.data['BTC'] = btc_data
+                print("✓ Bitcoin price data fetched")
+                return btc_data
+            else:
+                print("✗ Failed to fetch Bitcoin data")
+                return None
         except Exception as e:
             print(f"Error fetching BTC data: {e}")
             return None
@@ -25,10 +41,14 @@ class BitcoinCorrelationData:
     def fetch_sp500(self, period="2y"):
         """Fetch S&P 500 data"""
         try:
-            sp500 = yf.download("^GSPC", period=period, interval="1d")
-            self.data['SP500'] = sp500['Close']
-            print("✓ S&P 500 data fetched")
-            return sp500['Close']
+            sp500_data = self.safe_yf_download("^GSPC", period)
+            if sp500_data is not None:
+                self.data['SP500'] = sp500_data
+                print("✓ S&P 500 data fetched")
+                return sp500_data
+            else:
+                print("✗ Failed to fetch S&P 500 data")
+                return None
         except Exception as e:
             print(f"Error fetching SP500 data: {e}")
             return None
@@ -36,10 +56,14 @@ class BitcoinCorrelationData:
     def fetch_dollar_index(self, period="2y"):
         """Fetch US Dollar Index (DXY)"""
         try:
-            dxy = yf.download("DX=F", period=period, interval="1d")
-            self.data['DXY'] = dxy['Close']
-            print("✓ Dollar Index (DXY) data fetched")
-            return dxy['Close']
+            dxy_data = self.safe_yf_download("DX=F", period)
+            if dxy_data is not None:
+                self.data['DXY'] = dxy_data
+                print("✓ Dollar Index (DXY) data fetched")
+                return dxy_data
+            else:
+                print("✗ Failed to fetch DXY data")
+                return None
         except Exception as e:
             print(f"Error fetching DXY data: {e}")
             return None
@@ -48,10 +72,14 @@ class BitcoinCorrelationData:
         """Fetch US Treasury yields (10-year)"""
         try:
             # Using Treasury ETF as proxy for yields
-            tlt = yf.download("TLT", period=period, interval="1d")
-            self.data['Treasury_Yield_Proxy'] = tlt['Close']
-            print("✓ Treasury yields data fetched")
-            return tlt['Close']
+            tlt_data = self.safe_yf_download("TLT", period)
+            if tlt_data is not None:
+                self.data['Treasury_Yield_Proxy'] = tlt_data
+                print("✓ Treasury yields data fetched")
+                return tlt_data
+            else:
+                print("✗ Failed to fetch Treasury data")
+                return None
         except Exception as e:
             print(f"Error fetching Treasury data: {e}")
             return None
@@ -59,22 +87,24 @@ class BitcoinCorrelationData:
     def fetch_gold_price(self, period="2y"):
         """Fetch Gold price"""
         try:
-            gold = yf.download("GC=F", period=period, interval="1d")
-            self.data['Gold'] = gold['Close']
-            print("✓ Gold price data fetched")
-            return gold['Close']
+            gold_data = self.safe_yf_download("GC=F", period)
+            if gold_data is not None:
+                self.data['Gold'] = gold_data
+                print("✓ Gold price data fetched")
+                return gold_data
+            else:
+                print("✗ Failed to fetch Gold data")
+                return None
         except Exception as e:
             print(f"Error fetching Gold data: {e}")
             return None
 
     def fetch_crypto_fear_greed(self, limit=365):
         """Fetch Crypto Fear & Greed Index from alternative source"""
-        # Note: The official API may require authentication
-        # This is a simplified version - you might need to adjust
         try:
             # Using Alternative.me API (free tier)
             url = f"https://api.alternative.me/fng/?limit={limit}&format=json"
-            response = requests.get(url)
+            response = requests.get(url, timeout=10)
             if response.status_code == 200:
                 data = response.json()['data']
                 # Convert to DataFrame with date index
@@ -91,7 +121,7 @@ class BitcoinCorrelationData:
                 print("✓ Fear & Greed Index data fetched")
                 return df['Fear_Greed']
             else:
-                print("Could not fetch Fear & Greed data")
+                print("✗ Could not fetch Fear & Greed data")
                 return None
         except Exception as e:
             print(f"Error fetching Fear & Greed data: {e}")
@@ -101,11 +131,14 @@ class BitcoinCorrelationData:
         """Fetch total crypto market cap (simplified using BTC dominance proxy)"""
         try:
             # Using multiple crypto assets as proxy for total market cap
-            eth = yf.download("ETH-USD", period="2y", interval="1d")
-            # This is a simplified approach - in practice you'd want more comprehensive data
-            self.data['ETH'] = eth['Close']
-            print("✓ Ethereum data fetched as market proxy")
-            return eth['Close']
+            eth_data = self.safe_yf_download("ETH-USD", "2y")
+            if eth_data is not None:
+                self.data['ETH'] = eth_data
+                print("✓ Ethereum data fetched as market proxy")
+                return eth_data
+            else:
+                print("✗ Failed to fetch Ethereum data")
+                return None
         except Exception as e:
             print(f"Error fetching crypto market data: {e}")
             return None
@@ -113,10 +146,14 @@ class BitcoinCorrelationData:
     def fetch_vix(self, period="2y"):
         """Fetch VIX volatility index"""
         try:
-            vix = yf.download("^VIX", period=period, interval="1d")
-            self.data['VIX'] = vix['Close']
-            print("✓ VIX data fetched")
-            return vix['Close']
+            vix_data = self.safe_yf_download("^VIX", period)
+            if vix_data is not None:
+                self.data['VIX'] = vix_data
+                print("✓ VIX data fetched")
+                return vix_data
+            else:
+                print("✗ Failed to fetch VIX data")
+                return None
         except Exception as e:
             print(f"Error fetching VIX data: {e}")
             return None
@@ -124,16 +161,33 @@ class BitcoinCorrelationData:
     def fetch_on_chain_metrics_proxy(self):
         """Proxy for on-chain metrics using trading volume and price action"""
         try:
-            btc = yf.download("BTC-USD", period="2y", interval="1d")
+            btc_data = yf.download("BTC-USD", period="2y", interval="1d", progress=False)
+            if btc_data.empty:
+                print("✗ Failed to fetch BTC data for on-chain metrics")
+                return None, None
+                
             # Using volume and price range as proxies
-            self.data['BTC_Volume'] = btc['Volume']
+            self.data['BTC_Volume'] = btc_data['Volume']
             # Calculate daily volatility
-            self.data['BTC_Volatility'] = (btc['High'] - btc['Low']) / btc['Close']
+            self.data['BTC_Volatility'] = (btc_data['High'] - btc_data['Low']) / btc_data['Close']
             print("✓ On-chain metrics proxies created")
             return self.data['BTC_Volume'], self.data['BTC_Volatility']
         except Exception as e:
             print(f"Error creating on-chain proxies: {e}")
             return None, None
+
+    def validate_data(self):
+        """Validate that all data has proper index and is not scalar"""
+        valid_data = {}
+        for key, value in self.data.items():
+            if hasattr(value, 'index') and len(value) > 1:
+                valid_data[key] = value
+                print(f"✓ {key}: Valid data with {len(value)} points")
+            else:
+                print(f"✗ {key}: Invalid data (scalar or empty)")
+        
+        self.data = valid_data
+        return len(valid_data) > 0
 
     def compile_all_data(self, period="2y"):
         """Fetch all correlation data"""
@@ -152,16 +206,22 @@ class BitcoinCorrelationData:
         # Fear & Greed index (slower API)
         self.fetch_crypto_fear_greed()
         
-        # Combine all data into single DataFrame
-        self.combine_data()
-        
-        print("✓ All data compiled successfully!")
+        # Validate data before combining
+        if self.validate_data():
+            # Combine all data into single DataFrame
+            self.combine_data()
+            print("✓ All data compiled successfully!")
+        else:
+            print("✗ Data validation failed - cannot compile data")
 
     def combine_data(self):
         """Combine all data sources into a single DataFrame"""
+        if 'BTC' not in self.data:
+            print("✗ No BTC data available for combination")
+            return None
+        
         # Create base DataFrame with BTC price
-        if 'BTC' in self.data:
-            combined_df = pd.DataFrame({'BTC_Price': self.data['BTC']})
+        combined_df = pd.DataFrame({'BTC_Price': self.data['BTC']})
         
         # Add other data sources
         data_mapping = {
@@ -177,7 +237,9 @@ class BitcoinCorrelationData:
         
         for key, col_name in data_mapping.items():
             if key in self.data:
-                combined_df[col_name] = self.data[key]
+                # Align the data with the base DataFrame index
+                aligned_data = self.data[key].reindex(combined_df.index)
+                combined_df[col_name] = aligned_data
         
         # Add Fear & Greed index with date alignment
         if 'Fear_Greed' in self.data:
@@ -187,11 +249,12 @@ class BitcoinCorrelationData:
             combined_df['Fear_Greed_Index'] = fear_greed_aligned
         
         self.combined_data = combined_df.dropna()
+        print(f"✓ Combined data shape: {self.combined_data.shape}")
         return self.combined_data
 
     def calculate_correlations(self):
         """Calculate correlation matrix"""
-        if not hasattr(self, 'combined_data'):
+        if not hasattr(self, 'combined_data') or self.combined_data.empty:
             print("No combined data available. Run compile_all_data() first.")
             return None
         
@@ -205,29 +268,32 @@ class BitcoinCorrelationData:
         print("="*50)
         for asset, corr in btc_correlations.items():
             if asset != 'BTC_Price':
-                print(f"{asset:20} : {corr:+.4f}")
+                correlation_strength = "STRONG" if abs(corr) > 0.7 else "MODERATE" if abs(corr) > 0.3 else "WEAK"
+                print(f"{asset:20} : {corr:+.4f} ({correlation_strength})")
         
         return correlation_matrix
 
     def plot_correlations(self):
         """Plot correlation heatmap"""
-        if not hasattr(self, 'combined_data'):
+        if not hasattr(self, 'combined_data') or self.combined_data.empty:
             print("No combined data available.")
             return
         
         corr_matrix = self.calculate_correlations()
+        if corr_matrix is None:
+            return
         
         plt.figure(figsize=(12, 10))
         mask = np.triu(np.ones_like(corr_matrix, dtype=bool))
         sns.heatmap(corr_matrix, mask=mask, annot=True, cmap='coolwarm', center=0,
-                   square=True, linewidths=0.5, cbar_kws={"shrink": .8})
+                   square=True, linewidths=0.5, cbar_kws={"shrink": .8}, fmt='.2f')
         plt.title('Bitcoin Price Correlation Matrix', fontsize=16, fontweight='bold')
         plt.tight_layout()
         plt.show()
 
     def plot_time_series(self):
         """Plot normalized time series of all assets"""
-        if not hasattr(self, 'combined_data'):
+        if not hasattr(self, 'combined_data') or self.combined_data.empty:
             print("No combined data available.")
             return
         
@@ -235,15 +301,16 @@ class BitcoinCorrelationData:
         normalized_data = self.combined_data.copy()
         for column in normalized_data.columns:
             if column != 'Fear_Greed_Index':  # Don't normalize the index
-                normalized_data[column] = (normalized_data[column] / normalized_data[column].iloc[0]) * 100
+                if not normalized_data[column].empty:
+                    normalized_data[column] = (normalized_data[column] / normalized_data[column].iloc[0]) * 100
         
         plt.figure(figsize=(14, 8))
         for column in normalized_data.columns:
-            if column != 'Fear_Greed_Index':
+            if column != 'Fear_Greed_Index' and not normalized_data[column].empty:
                 plt.plot(normalized_data.index, normalized_data[column], label=column, linewidth=2)
         
         # Add Fear & Greed index on secondary axis
-        if 'Fear_Greed_Index' in normalized_data.columns:
+        if 'Fear_Greed_Index' in normalized_data.columns and not normalized_data['Fear_Greed_Index'].empty:
             ax2 = plt.gca().twinx()
             ax2.plot(normalized_data.index, normalized_data['Fear_Greed_Index'], 
                     label='Fear & Greed Index', color='black', linestyle='--', alpha=0.7)
@@ -260,7 +327,7 @@ class BitcoinCorrelationData:
 
     def save_to_csv(self, filename="bitcoin_correlation_data.csv"):
         """Save the combined data to CSV"""
-        if hasattr(self, 'combined_data'):
+        if hasattr(self, 'combined_data') and not self.combined_data.empty:
             self.combined_data.to_csv(filename)
             print(f"✓ Data saved to {filename}")
         else:
@@ -274,16 +341,22 @@ if __name__ == "__main__":
     # Fetch all data (default: 2 years)
     btc_corr.compile_all_data(period="2y")
     
-    # Calculate and display correlations
-    correlations = btc_corr.calculate_correlations()
-    
-    # Create visualizations
-    btc_corr.plot_correlations()
-    btc_corr.plot_time_series()
-    
-    # Save data to CSV
-    btc_corr.save_to_csv()
-    
-    # Display first few rows of data
-    print("\nFirst 5 rows of compiled data:")
-    print(btc_corr.combined_data.head())
+    if hasattr(btc_corr, 'combined_data') and not btc_corr.combined_data.empty:
+        # Calculate and display correlations
+        correlations = btc_corr.calculate_correlations()
+        
+        # Create visualizations
+        btc_corr.plot_correlations()
+        btc_corr.plot_time_series()
+        
+        # Save data to CSV
+        btc_corr.save_to_csv()
+        
+        # Display first few rows of data
+        print("\nFirst 5 rows of compiled data:")
+        print(btc_corr.combined_data.head())
+        
+        print("\nData summary:")
+        print(btc_corr.combined_data.describe())
+    else:
+        print("Failed to compile data. Please check the error messages above.")
